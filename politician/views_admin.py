@@ -2,6 +2,7 @@
 # Brought to you by We Vote. Be good.
 # -*- coding: UTF-8 -*-
 import re
+from time import time
 from base64 import b64encode
 import json
 import string
@@ -1660,6 +1661,8 @@ def politician_edit_by_we_vote_id_view(request, politician_we_vote_id):
 
 @login_required
 def politician_edit_view(request, politician_id=0, politician_we_vote_id=''):
+    performance_list = []
+    t0 = time()
     # admin, analytics_admin, partner_organization, political_data_manager, political_data_viewer, verified_volunteer
     authority_required = {'verified_volunteer'}
     if not voter_has_authority(request, authority_required):
@@ -1725,6 +1728,21 @@ def politician_edit_view(request, politician_id=0, politician_we_vote_id=''):
     except Politician.DoesNotExist:
         # This is fine, create new below
         pass
+    t1 = time()
+    time_difference = t1 - t0
+    performance_snapshot = {
+        'time_difference': time_difference,
+    }
+
+    performance_list.append(performance_snapshot)
+
+    performance_dict = {
+        'performance_list': performance_list,
+    }
+
+    print(f'time before: {t0}')
+    print(f'time after: {t1}')
+    print(performance_dict['performance_list'][0]['time_difference'], 'view function politician_edit_view')
 
     if politician_on_stage_found:
         # Generate a CampaignX entry for this politician if one does not exist
@@ -1740,9 +1758,11 @@ def politician_edit_view(request, politician_id=0, politician_we_vote_id=''):
         vote_smart_turned_on = False
         if vote_smart_turned_on:
             try:
+                t2 = time()  # Capture time after campaign generation
                 vote_smart_politician_id = politician_on_stage.vote_smart_id
                 rating_list_query = VoteSmartRatingOneCandidate.objects.using('readonly').order_by('-timeSpan')
                 rating_list = rating_list_query.filter(candidateId=vote_smart_politician_id)
+                print(f"Time taken to retrieve VoteSmartRatingOneCandidate: {t2} seconds")
             except VotesmartApiError as error_instance:
                 # Catch the error message coming back from Vote Smart and pass it in the status
                 error_message = error_instance.args
@@ -1815,6 +1835,8 @@ def politician_edit_view(request, politician_id=0, politician_we_vote_id=''):
             organization_error += "ERROR: Organization not found by politician_we_vote_id. "
         except Exception as e:
             status += 'ERROR_RETRIEVING_FROM_ORGANIZATION: ' + str(e) + ' '
+            t3 = time()
+            print(f"Time taken after organization retrieval: {t3 - t2} seconds")
 
         if please_update_politician:
             messages.add_message(
@@ -1857,6 +1879,8 @@ def politician_edit_view(request, politician_id=0, politician_we_vote_id=''):
             if len(follow_list) > 0:
                 for follow_organization in follow_list:
                     follow_dict[follow_organization.organization_we_vote_id_that_is_following] = True
+                    t4 = time()
+                    print(f"Time taken after follow_organization retrieval: {t4 - t3} seconds")
 
         # Finally, attach organization_is_following_politician to the politician_position if True
         for politician_position in politician_position_list:
@@ -3256,11 +3280,16 @@ def politician_edit_process_view(request):
 
             update_ballotpedia_politician_url = ballotpedia_politician_url_changed or \
                     not positive_value_exists(politician_on_stage.ballotpedia_photo_url)
+            # add t3 for ballotpedia
+            t4 = time()
             if update_ballotpedia_politician_url and positive_value_exists(ballotpedia_politician_url):
                 results = get_photo_url_from_ballotpedia(
                     incoming_object=politician_on_stage,
                     save_to_database=True,
                 )
+                t5 = time()
+                print(t5 - t4, 'seconds to get_photo_url_from_ballotpedia')
+
                 if positive_value_exists(results['error_message_to_print']):
                     messages.add_message(request, messages.ERROR, results['error_message_to_print'])
                 if positive_value_exists(results['info_message_to_print']):

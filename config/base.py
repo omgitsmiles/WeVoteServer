@@ -22,6 +22,57 @@ except Exception as e:
     # Can't use logger in the settings file due to loading sequence
 
 
+# def get_environment_variable(var_name, json_environment_vars=json_environment_variables, no_exception=False):
+#     """
+#     Get the environment variable or return exception. Don't return exception if no_exception is True
+#     """
+#     try:
+#         # Environment variables can be set with this for example: export GOOGLE_CIVIC_API_KEY=<API KEY HERE>
+#         val = os.environ[var_name]
+#         # handle boolean variables; return bool value when string is "true" or "false"
+#         try:
+#             if val.lower() == 'true':
+#                 return True
+#             elif val.lower() == 'false':
+#                 return False
+#         except Exception as e:
+#             pass
+#         return val
+#     except KeyError:
+#         pass
+#
+#     if json_environment_vars:
+#         if var_name in json_environment_vars:
+#             val = json_environment_vars[var_name]
+#             # handle boolean variables; return bool value when string is "true" or "false"
+#             try:
+#                 if val.lower() == 'true':
+#                     return True
+#                 elif val.lower() == 'false':
+#                     return False
+#             except Exception as e:
+#                 pass
+#             return val
+#         else:
+#             variable_not_found = True
+#     else:
+#         variable_not_found = True
+#
+#     if variable_not_found:
+#         # Can't use logger in the settings file due to loading sequence
+#         error_message = "ERROR: Unable to set the {} variable from os.environ or JSON file".format(var_name)
+#         try:
+#             import logging
+#             logging.error(error_message)
+#         except Exception as e:
+#             pass
+#         if no_exception:
+#             return ''
+#         else:
+#             raise ImproperlyConfigured(error_message)
+#     else:
+#         return ''
+
 def get_environment_variable(var_name, json_environment_vars=json_environment_variables, no_exception=False):
     """
     Get the environment variable or return exception. Don't return exception if no_exception is True
@@ -55,8 +106,21 @@ def get_environment_variable(var_name, json_environment_vars=json_environment_va
             return val
         else:
             variable_not_found = True
+            # Logging the issue if the variable is not found in the JSON file
+            try:
+                import logging
+                logging.warning(f"WARNING: {var_name} not found in JSON environment variables.")
+                logging.info(f"Available JSON keys: {list(json_environment_vars.keys())}")  # Log the available keys
+            except Exception as e:
+                pass
     else:
         variable_not_found = True
+        # Logging if the JSON environment variables are not loaded or empty
+        try:
+            import logging
+            logging.warning("WARNING: JSON environment variables are not loaded or empty.")
+        except Exception as e:
+            pass
 
     if variable_not_found:
         # Can't use logger in the settings file due to loading sequence
